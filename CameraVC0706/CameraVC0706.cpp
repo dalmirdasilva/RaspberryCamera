@@ -2,7 +2,7 @@
 #include "CameraVC0706.h"
 
 CameraVC0706::CameraVC0706(char *dev) {
-	int i = 0;
+    int i = 0;
     while (dev[i] != '\0') {
         this->dev[i] = dev[i];
         i++;
@@ -17,13 +17,13 @@ CameraVC0706::CameraVC0706(char *dev) {
 int CameraVC0706::begin(int baud) {
 
     struct termios old_flags; 
-	struct termios term_attr;
-	printf("begin dev: %s\n", dev);
+    struct termios term_attr;
+    printf("begin dev: %s\n", dev);
     if ((fd = open(dev, O_RDWR | O_NONBLOCK)) == -1) {
         perror("Can't open device ");
         return 1;
     } 
-	fcntl(fd, F_SETFL, O_NONBLOCK);
+    fcntl(fd, F_SETFL, O_NONBLOCK);
 
     // Configurare RS232
     if (tcgetattr(fd, &term_attr) != 0) {
@@ -37,11 +37,11 @@ int CameraVC0706::begin(int baud) {
     cfsetospeed(&term_attr, baud); 
     cfmakeraw(&term_attr);
 
-	term_attr.c_iflag = 0; 
-	term_attr.c_oflag = 0; 
-	term_attr.c_lflag = 0;
-	term_attr.c_cflag = 0;
- 
+    term_attr.c_iflag = 0; 
+    term_attr.c_oflag = 0; 
+    term_attr.c_lflag = 0;
+    term_attr.c_cflag = 0;
+   
     // Finished after one bye 
     term_attr.c_cc[VMIN] = 1;
     
@@ -54,9 +54,9 @@ int CameraVC0706::begin(int baud) {
     // Using flow control via CTS/RTS 
     term_attr.c_cflag |= (baud | CS8 | CRTSCTS | CLOCAL | HUPCL);
 
-	term_attr.c_oflag |= (OPOST | ONLCR); 
+    term_attr.c_oflag |= (OPOST | ONLCR); 
 
-	// Save old configuration
+    // Save old configuration
     old_flags = term_attr; 
     term_attr.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
                                                             
@@ -106,28 +106,23 @@ int CameraVC0706::write(unsigned char *buf, int size) {
 
     check = ::write(fd, buf, size);
 
-    // Waits until all output written to the object referred to 
+    // Waits until all output written to the object referred to
     // by fildes is transmitted
     tcdrain(fd);
 
     if (check < 0) {
-        perror("write failed"); 
+        perror("write failed");
         close(fd);
-        return -1;
     } else if(check == 0) {
         perror("no bytes transmitted");
         close(fd);
-        return 0;
     }
-    return check;                                                                       	                                
+    return check;
 }
 
 int CameraVC0706::read(unsigned char *buf, int size) {
-	int state = 1;
-	int received = 0;
-	for (int o = 0; o < 10; o++) {
-		printf("_: %d\n", ::read(fd, &buf[received], 10));
-	}
+    int state = 1;
+    int received = 0;
     while(state > 0 && received < size) {
         state = ::read(fd, &buf[received], 1);
         printf("state: %d\n", state);
@@ -139,7 +134,9 @@ int CameraVC0706::read(unsigned char *buf, int size) {
 }
 
 bool CameraVC0706::runCommand(unsigned char cmd, unsigned char *args, int argc, int responseLength) {
-    sendCommand(cmd, args, argc);
+    if (!sendCommand(cmd, args, argc)) {
+        return false;
+    }
     if (!readResponse(responseLength)) {
         return false;
     }
@@ -149,12 +146,20 @@ bool CameraVC0706::runCommand(unsigned char cmd, unsigned char *args, int argc, 
     return true;
 }
 
-void CameraVC0706::sendCommand(unsigned char cmd, unsigned char args[], int argc) {
-    unsigned char b[] = {VC0760_PROTOCOL_SIGN_TX, serialNumber, cmd};
-    printf("write(b, 3): %d\n", write(b, 3));
-    printf("write(args, argc): %d\n", write(args, argc));
+int CameraVC0706::sendCommand(unsigned char cmd, unsigned char *args, int argc) {
+    int i;
+    unsigned char b[3 + argc];
+    b[0] = VC0760_PROTOCOL_SIGN_TX;
+    b[1] = serialNumber;
+    b[2] = cmd;
+    memcpy(&b[3], args, argc);
+    i = write(b, sizeof(b));
+    if (i != sizeof(b)) {
+        perror("Cannot write. Returned %d\n", i);
+        return 0;
+    }
+    return i;
 }
-
 
 bool CameraVC0706::verifyResponse(unsigned char cmd) {
     if ((buffer[0] != VC0760_PROTOCOL_SIGN_RX) ||

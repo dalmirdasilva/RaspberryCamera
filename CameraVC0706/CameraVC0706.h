@@ -138,7 +138,7 @@ private:
 
     int read(unsigned char *buf, int size);
     
-    void sendCommand(unsigned char cmd, unsigned char args[], int argc);
+    int sendCommand(unsigned char cmd, unsigned char *args, int argc);
 
     bool verifyResponse(unsigned char cmd);
 
