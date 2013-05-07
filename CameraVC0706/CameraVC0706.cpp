@@ -15,72 +15,35 @@ CameraVC0706::CameraVC0706(char *dev) {
 }
 
 int CameraVC0706::begin(int baud) {
-
-    struct termios old_flags; 
-    struct termios term_attr;
-    printf("begin dev: %s\n", dev);
-    if ((fd = open(dev, O_RDWR | O_NONBLOCK)) == -1) {
-        perror("Can't open device ");
-        return 1;
-    } 
-    fcntl(fd, F_SETFL, O_NONBLOCK);
-
-    // Configurare RS232
-    if (tcgetattr(fd, &term_attr) != 0) {
-        perror("tcgetattr() failed"); 
-        return 1;
-    } 
-    
-    // Save old flags
-    old_flags = term_attr; 
-    cfsetispeed(&term_attr, baud); 
-    cfsetospeed(&term_attr, baud); 
-    cfmakeraw(&term_attr);
-
-    term_attr.c_iflag = 0; 
-    term_attr.c_oflag = 0; 
-    term_attr.c_lflag = 0;
-    term_attr.c_cflag = 0;
-   
-    // Finished after one bye 
-    term_attr.c_cc[VMIN] = 1;
-    
-    // or 800ms time out 
-    term_attr.c_cc[VTIME] = 8;
-
-    // Added
-    term_attr.c_cflag &= ~(PARENB | CSTOPB | CSIZE);
-    
-    // Using flow control via CTS/RTS 
-    term_attr.c_cflag |= (baud | CS8 | CRTSCTS | CLOCAL | HUPCL);
-
-    term_attr.c_oflag |= (OPOST | ONLCR); 
-
-    // Save old configuration
-    old_flags = term_attr; 
-    term_attr.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-                                                            
-    if (tcsetattr(fd, TCSAFLUSH, &term_attr) != 0) { 
-        perror("tcsetattr() failed"); 
-        return 1; 
-    } 
-
-    // Change standard input
-    if (tcgetattr(STDIN_FILENO, &term_attr) != 0) {
-        perror("tcgetattr() failed"); 
-        return 1; 
-    } 
-
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &term_attr) != 0) {
-        perror("terminal: tcsetattr() failed"); 
+    struct termios options;
+    fd = open(dev, O_RDWR | O_NOCTTY | O_NDELAY);
+    if (fd == -1) {
+        printf("Error - Unable to open UART.\n");
+        return 0;
     }
-    
-    // Select the first channel 1
-    FD_SET(fd, &input_fdset);
 
-    printf("fd: %d\n", fd);
-
-    return 0;
+    /**
+     * Baud rate:- B1200, B2400, B4800, B9600, B19200, B38400, 
+     * B57600, B115200, B230400, B460800, B500000, B576000, B921600, 
+     * B1000000, B1152000, B1500000, B2000000, B2500000, B3000000, 
+     * B3500000, B4000000
+     * 
+     * CSIZE:- CS5, CS6, CS7, CS8
+     * CLOCAL - Ignore modem status lines
+     * CREAD - Enable receiver
+     * IGNPAR = Ignore characters with parity errors
+     * ICRNL - Map CR to NL on input
+     * PARENB - Parity enable
+     * PARODD - Odd parity (else even)
+     */
+    tcgetattr(fd, &options);
+    options.c_cflag = baud | CS8 | CLOCAL | CREAD;
+    options.c_iflag = IGNPAR | ICRNL;
+    options.c_oflag = 0;
+    options.c_lflag = 0;
+    tcflush(fd, TCIFLUSH);
+    tcsetattr(fd, TCSANOW, &options);
+    return 1;
 }
 
 bool CameraVC0706::capture() {
@@ -101,43 +64,70 @@ void CameraVC0706::setOutputResolution(unsigned char resolution) {
 }
 
 int CameraVC0706::write(unsigned char *buf, int size) {
+    int txLength = 0;
+    if (fd != -1) {
+        int txLength = ::write(fd, &buffer[0], size);
+        if (txLength < 0) {
+          
+#if VC0760_DEBUG == 1
+            printf("UART TX error\n");
+#endif
 
-    int check;
+        }
+    } else {
+      
+#if VC0760_DEBUG == 1
+        printf("UART file descriptor is closed.\n");
+#endif
 
-    check = ::write(fd, buf, size);
-
-    // Waits until all output written to the object referred to
-    // by fildes is transmitted
-    tcdrain(fd);
-
-    if (check < 0) {
-        perror("write failed");
-        close(fd);
-    } else if(check == 0) {
-        perror("no bytes transmitted");
-        close(fd);
     }
-    return check;
+    return txLength;
 }
 
 int CameraVC0706::read(unsigned char *buf, int size) {
-    int state = 1;
-    int received = 0;
-    while(state > 0 && received < size) {
-        state = ::read(fd, &buf[received], 1);
-        printf("state: %d\n", state);
-        if(state > 0) {
-            received++; 
-        }
-    } 
-    return received;
+    int rxLength = ::read(fd, (void*) buffer, size);
+    if (rxLength < 0) {
+
+#if VC0760_DEBUG == 1
+    printf("Error on read.\n");
+#endif
+
+    } else if (rxLength == 0) {
+
+#if VC0760_DEBUG == 1
+    printf("No data received on read.\n");
+#endif
+
+    } else {
+		buffer[rxLength] = '\0';
+
+#if VC0760_DEBUG == 1
+		printf("%i bytes read.\n", rxLength);
+#endif
+
+    }
+    return rxLength;
 }
 
 bool CameraVC0706::runCommand(unsigned char cmd, unsigned char *args, int argc, int responseLength) {
-    if (!sendCommand(cmd, args, argc)) {
+	int length;
+	length = sendCommand(cmd, args, argc);
+
+#if VC0760_DEBUG == 1
+    printf("sendCommand returned %d.\n", length);
+#endif
+
+    if (!length) {
         return false;
     }
-    if (!readResponse(responseLength)) {
+    usleep(10000);
+    length = readResponse(responseLength);
+
+#if VC0760_DEBUG == 1
+    printf("readResponse returned %d.\n", length);
+#endif
+
+    if (!length) {
         return false;
     }
     if (!verifyResponse(cmd)) {
@@ -147,18 +137,27 @@ bool CameraVC0706::runCommand(unsigned char cmd, unsigned char *args, int argc, 
 }
 
 int CameraVC0706::sendCommand(unsigned char cmd, unsigned char *args, int argc) {
-    int i;
-    unsigned char b[3 + argc];
-    b[0] = VC0760_PROTOCOL_SIGN_TX;
-    b[1] = serialNumber;
-    b[2] = cmd;
-    memcpy(&b[3], args, argc);
-    i = write(b, sizeof(b));
-    if (i != sizeof(b)) {
-        perror("Cannot write. Returned %d\n", i);
+    int length;
+    unsigned char buf[3 + argc];
+    buf[0] = VC0760_PROTOCOL_SIGN_TX;
+    buf[1] = serialNumber;
+    buf[2] = cmd;
+    memcpy(&buf[3], args, argc);
+    length = write(b, sizeof(buf));
+
+#if VC0760_DEBUG == 1
+    printf("%d bytes written.\n", length);
+#endif
+
+    if (length != (int) sizeof(b)) {
+
+#if VC0760_DEBUG == 1
+        printf("Cannot write. Returned %d\n", length);
+#endif
+
         return 0;
     }
-    return i;
+    return length;
 }
 
 bool CameraVC0706::verifyResponse(unsigned char cmd) {
@@ -180,24 +179,20 @@ int CameraVC0706::readResponse(int length) {
 void CameraVC0706::printBuff() {
 	printf("Printing buffer:\n");
 	for (int i = 0; i < bufferPointer; i++) {
-		printf("0x%x\n", buffer[i]);
+		printf("\t%d: 0x%x\n", i, buffer[i]);
 	}
 }
 
 float CameraVC0706::getVersion() {
     int i = 0;
     unsigned char args[] = {0x01};
-    sendCommand(GEN_VERSION, args, sizeof(args));
-    if (!readResponse(VC0760_BUFFER_SIZE)) {
-        return 0.0;
-    }
-    if (!verifyResponse(GEN_VERSION)) {
-        return 0.0;
+    if (!runCommand(GEN_VERSION, args, sizeof(args), VC0760_BUFFER_SIZE)) {
+    	return 0.0;
     }
     float version = 0.0;
     while (buffer[i++] != ' ');
-    version += abs('0' - buffer[i - 1]);
-    version += 0.1 * abs('0' - buffer[i + 1]);
-    version += 0.01 * abs('0' - buffer[i + 2]);
+    version += buffer[i] - '0';
+    version += 0.1 * (buffer[i + 2] - '0');
+    version += 0.01 * (buffer[i + 3] - '0');
     return version;
 }

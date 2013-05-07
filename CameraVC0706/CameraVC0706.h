@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 
+#define VC0760_DEBUG 				1
 #define VC0760_PROTOCOL_SIGN_TX     0x56
 #define VC0760_PROTOCOL_SIGN_RX     0x76
 
@@ -128,6 +129,9 @@ public:
      */
     void setOutputResolution(unsigned char resolution);
 
+    /**
+     * Get the camera version.
+     */
     float getVersion();
     
 private:
