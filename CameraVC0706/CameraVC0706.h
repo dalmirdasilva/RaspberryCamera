@@ -27,6 +27,8 @@
 
 #define VC0760_BUFFER_SIZE          0x100
 
+#define VC0760_CAMERA_DELAY 		10
+
 class CameraVC0706 {
 
     int fd;
@@ -102,11 +104,18 @@ public:
     bool capture();
 
     /**
+     * Gets the frame length.
+     *
+     * @return				The frame length.
+     */
+    int getFrameLength();
+
+    /**
      * Returns a frame.
      *
      * @return               A frame.
      */
-    int readFrame(unsigned char *out);
+    int readFrame(unsigned char *out, int offset, int size);
 
     /**
      * En/disable horizontal mirror.
@@ -133,6 +142,8 @@ public:
      * Get the camera version.
      */
     float getVersion();
+
+    bool reset();
     
 private:
 
