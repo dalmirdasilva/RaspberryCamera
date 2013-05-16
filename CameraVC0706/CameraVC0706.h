@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define VC0760_DEBUG 				1
 #define VC0760_PROTOCOL_SIGN_TX     0x56
@@ -204,6 +205,18 @@ public:
 
 	/**
 	 * Gets the frame length.
+	 * 
+	 * Command function :get byte-lengths inFBUF
+	 * Command format :0x56+serial number+0x34+0x01+FBUF type(1 byte)
+	 * 
+	 * <pre>
+	 * FBUF type:current frame or next frame
+	 * 		0:current frame
+	 * 		1:next frame
+	 * </pre>
+	 * 
+	 * Return format :
+	 * OK:0x76+serial number+0x34+0x00+0x04+FBUF data-lengths(4 bytes)
 	 *
 	 * @return				The frame length.
 	 */
@@ -211,6 +224,29 @@ public:
 
 	/**
 	 * Returns a frame.
+	 * 
+	 * Command function :read image data from FBUF.
+	 * Command format :0x56+serial number+0x32+0x0C+FBUF type(1 byte)+control mode(1 byte)
+	 *  +starting address(4 bytes)+data-length(4 bytes)+delay(2 bytes)
+	 * 
+	 * <pre>
+	 * FBUF type:current frame or next frame
+	 * 		0:current frame
+	 * 		1:next frame
+	 * 
+	 * Control mode:the mode by which image data transfer
+	 * 		Bit0:0:data transfer by MCU mode
+	 * 			 1:data transfer by DMA mode
+	 * 		Bit[2:1]:2'b11
+	 * 		Bit3: 1'b11
+	 * </pre>
+	 * 
+	 * Starting address: the address in fbuf to store the image data.
+	 * Data-length:the byte number ready to read, it must be the multiple of 4.
+	 * Delay:the delay time between command and data, the unit is 0.01 millisecond.
+	 * Return format :
+	 * Ok:if execute right, return 0x76+serial number+0x32+0x00+0x00, the following is image data,
+	 * at last, return 0x76+serial number+0x32+0x00+0x00 again.
 	 *
 	 * @return               A frame.
 	 */
@@ -237,19 +273,93 @@ public:
 	 * @param resolution        The output resolution.
 	 */
 	bool setOutputResolution(unsigned char resolution);
+	
+	/**
+	 * Sets the motion detection.
+	 * 
+	 * Command function :motion detect on or off in comunication interface
+	 * Command format :0x56+serial number+0x37+0x01+control flag(1 byte)
+	 * 
+	 * <pre>
+	 * control flag:
+	 * 		0:stop motion monitoring
+	 * 		1:start motion monitoring
+	 * </pre>
+	 * Error:0x76+serial number+0x37+0x03+0x00
+	 * 
+	 * @param monitor			The flag.
+	 */
+	bool setMotionMonitoring(bool monitor);
+	
+	/**
+	 * Gets the motion status.
+	 * 
+	 * Command function :get motion monitoring status in comunication interface.
+	 * Command format :0x56+serial number+0x38+0x00
+	 * 
+	 * Return format :
+	 * 
+	 * OK:0x76+serial number+0x38+0x00+0x01+control flag(1 byte)
+	 * 
+	 * <pre>
+	 * control flag:
+	 * 		0:stop motion monitoring
+	 * 		1:start motion monitoring
+	 * </pre>
+	 * Error:0x76+serial number+0x37+0x03+0x00
+	 * 
+	 * @param return			The flag.
+	 */
+	bool getMotionMonitoring();
+	
+	/**
+	 * Polling for motion detection.
+	 * 
+	 * Command function : detect motion
+	 * 
+	 * Command format :
+	 * After starting motion monitoring, once system detects motion, it will send the command.
+	 * Return format :0x76+serial number+0x39+0x00
+	 * 
+	 * E.g.
+	 * 0x76+0x00+0x39+0x00 detect motion
+	 * 
+	 * It is an active command that system send to control terminal.
+	 * 
+	 * @param timeout			The timeout to wait.
+	 * @param callback			Funtion pointer.	
+	 */
+	bool pollMotionMonitoring(int timeout, void (*callback)(void *));
 
 	/**
 	 * Get the camera version.
+	 * 
+	 * Command function :Get Firmware version information
+	 * Command format :0x56+Serial number+0x11+0x00
+	 * Return format :0x76+Serial number+0x11+0x00+0x0B+"VC0706 1.00"
+	 * 
+	 * @return 					The float version.
 	 */
 	float getVersion();
 
 	/**
 	 * Reset the camera
 	 */
-	int reset();
+	bool reset();
 
 	/**
 	 * Execute a buffer control issue.
+	 * 
+	 * Command function :control frame buffer register
+	 * Command format :0x56+serial number+0x36+0x01+control flag(1 byte) control flag:
+	 * <pre>
+	 * 		0:stop current frame
+	 * 		1:stop next frame
+	 * 		2:resume frame
+	 * 		3:step frame
+	 * </pre>
+	 * Return format :
+	 * OK:0x76+serial number+0x36+0x00+0x00
 	 *
 	 * @param control               The buffer control.
 	 */
@@ -265,6 +375,18 @@ public:
 	/**
 	 * Configures the boud rate.
 	 *
+	 * Command function :Set the property of communication interface
+	 * Command format :0x56+Serial number+0x24+Data-length+interface type1byte)+configuration data
+	 * 
+	 * Such as set MCU UART:
+	 * 0x56+Serial number+0x24+0x03+0x01+S1RELH(1byte)+S1RELL(1byte) interface type:
+	 * <pre>
+	 * 		0x01:MCU UART
+	 * </pre>
+	 * 
+	 * Return format :
+	 * OK: 0x76+Serial number+0x24+0x00+0x00
+	 * 
 	 * @param baudRate				The boud rate.
 	 */
 	bool setBoudRate(int baudRate);

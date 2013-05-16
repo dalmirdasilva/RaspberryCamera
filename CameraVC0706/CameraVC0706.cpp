@@ -102,14 +102,41 @@ int CameraVC0706::getFrameLength() {
 }
 
 void CameraVC0706::setHorizontalMirror(bool mirror) {
+	
 }
 
 void CameraVC0706::setVerticalFlip(bool flip) {
+	
 }
 
 bool CameraVC0706::setOutputResolution(unsigned char resolution) {
 	unsigned char args[] = {0x05, 0x04, 0x01, 0x00, 0x19, (unsigned char) (resolution & 0x03)};
 	return runCommand(WRITE_DATA, args, sizeof(args), 5);
+}
+
+bool CameraVC0706::setMotionMonitoring(bool monitor) {
+	unsigned char args[] = {0x01, (unsigned char) (monitor & 0x01)};
+	return runCommand(COMM_MOTION_CTRL, args, sizeof(args), 5);
+}
+
+bool CameraVC0706::getMotionMonitoring() {
+	unsigned char args[] = {0x00};
+	bool (runCommand(COMM_MOTION_STATUS, args, sizeof(args), 6)) && rxBuffer[5];
+}
+
+bool CameraVC0706::pollMotionMonitoring(int timeout, void (*callback)(void *)) {
+	time_t start, now;
+	bool detected = 0;
+	time(&start);
+	do {
+		readResponse(4);
+		detected = verifyResponse(COMM_MOTION_DETECTED);
+		if (detected && callback != 0) {
+			callback(this);
+		} else {
+			time(&now);
+		}
+	} while(((now - start) < timeout) && !detected);
 }
 
 int CameraVC0706::write(unsigned char *buf, int size) {
@@ -228,10 +255,9 @@ void CameraVC0706::printBuff(unsigned char *buf, int c) {
 #endif
 }
 
-int CameraVC0706::reset() {
+bool CameraVC0706::reset() {
 	unsigned char args[] = {0x00};
-	int response = runCommand(SYSTEM_RESET, args, 1, 5);
-	return response;
+	return runCommand(SYSTEM_RESET, args, sizeof(args), 5);
 }
 
 float CameraVC0706::getVersion() {

@@ -3,6 +3,7 @@
 void captureAndSave(CameraVC0706 *cam, char *fileName);
 void showUsage();
 int getBoudFromChar(char c);
+void captureCallback(void *param);
 
 int main(int argc, char *argv[]) {
 
@@ -24,6 +25,10 @@ int main(int argc, char *argv[]) {
 
 		unsigned char c;
 		case 'B':
+			if (argc < 4) {
+				printf("Baud rate not specified.\n");
+				exit(1);
+			}
 			baud = getBoudFromChar(argv[3][0]);
 			printf("Baud rate: %d\n", baud);
 			cam.setBoudRate(baud);
@@ -74,13 +79,37 @@ int main(int argc, char *argv[]) {
 			printf("Capturing to file: %s.\n", argv[3]);
 			captureAndSave(&cam, argv[3]);
 			break;
-
+			
+		case 'M':
+			if (argc < 4) {
+				printf("Detection mode not specified.\n");
+				exit(1);
+			}
+			c = atoi(argv[3]);
+			printf("Setting motion monitoring to: %d.\n", c);
+			cam.setMotionMonitoring(c & 0x01);
+			break;
+			
+		case 'm':
+			c = cam.getMotionMonitoring();
+			printf("Getting motion monitoring: %d.\n", c);
+			break;
+			
+		case 'd':
+			printf("Detect motion.");
+			cam.pollMotionMonitoring(120, captureCallback);
+			break;
+			
 		default:
 			printf("%f\n", cam.getVersion());
 	}
 
 	cam.close();
 	return 0;
+}
+
+void captureCallback(void *param) {
+	captureAndSave((CameraVC0706 *) param, "photo1.jpg");
 }
 
 void captureAndSave(CameraVC0706 *cam, char *fileName) {
@@ -115,12 +144,16 @@ void captureAndSave(CameraVC0706 *cam, char *fileName) {
 }
 
 void showUsage() {
-	printf("program 5 B 0/1/2/3/4/5		@115200 Baud rate 9600/19200/38400/57600/115200.\n");
-	printf("program 5 T 0/1       		@115200 TV off/on.\n");
-	printf("program 5 o 0/1/2       	@115200 Resolution 160x120/320x240/640x480.\n");
-	printf("program 5 c <filename>  	@115200 Capture.\n");
+	printf("program 5 B 0/1/2/3/4/5     @115200 Baud Rate 9600/19200/38400/57600/115200.\n");
+	printf("program 5 T 0/1             @115200 TV off/on.\n");
+	printf("program 5 o 0/1/2           @115200 Resolution 160x120/320x240/640x480.\n");
+	printf("program 5 c <filename>      @115200 Capture.\n");
+	printf("program 5 M 0/1             @115200 Set Motion Monitoring.\n");
+	printf("program 5 m                 @115200 Get Motion Monitoring.\n");
+	printf("program 5 d                 @115200 Detect Monitoring.\n");
+	printf("program 5 c <filename>      @115200 Capture.\n");
 	//printf("program 5 f 0/1 0/1			@115200 Stop/Resume current/next frame.\n");
-	printf("program 5 v             	@115200 Version.\n");
+	printf("program 5 v                 @115200 Version.\n");
 }
 
 int getBoudFromChar(char c) {
