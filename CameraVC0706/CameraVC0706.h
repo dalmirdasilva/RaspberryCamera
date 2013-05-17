@@ -26,7 +26,7 @@
 #define VC0760_PROTOCOL_SIGN_TX     0x56
 #define VC0760_PROTOCOL_SIGN_RX     0x76
 
-#define VC0760_RX_BUFFER_SIZE       0x10
+#define VC0760_RX_BUFFER_SIZE       0xff
 #define VC0760_CAMERA_DELAY 		0x0100
 
 class CameraVC0706 {
@@ -43,18 +43,13 @@ class CameraVC0706 {
 
 	int framePointer;
 	
-	unsigned char frameTransferControl;
+	int baudRate;
 
 public:
-
-	enum TransferControl {
-		MCU = 0,
-		DMA = 1
-	};
 	
 	enum ControlBy {
-		GPIO = 0,
-		UART = 1,
+		GPIO = 0x00,
+		UART = 0x01,
 	};
 	
 	enum ColorControlMode {
@@ -441,6 +436,44 @@ public:
 	 * @param callback			Funtion pointer.	
 	 */
 	bool pollMotionMonitoring(int timeout, void (*callback)(void *));
+	
+	/**
+	 * Command function : add OSD characters to channels(channel 1)
+	 * 
+	 * Command format :0x56+serial number+0x45+data-length+character 
+	 * 	number(1 byte)+starting address(1 byte)+characters(n characters)character number:
+	 * 	the number of characters which continuously are written to channels, the most is 14.
+	 * 
+	 * <pre>
+	 * starting address:the starting place from which characters show. The format is as follows.
+	 * 		Bit[4-0]:Y-coordinate
+	 * 		Bit[6-5]:X-coordinate
+	 * </pre>
+	 * 
+	 * Characters:the characters ready to show. It is VC0706 OSD characters.
+	 * Return format :
+	 * OK: 0x76+serial number+0x45+0x00+0x00
+	 * 
+	 * @param x						The x position.
+	 * @param y						The y position.
+	 * @param str					The string to be used.
+	 * @param len					How many char to use.
+	 */
+	bool setOsdCharacters(unsigned char x, unsigned char y, unsigned char *str, unsigned char len);
+	
+	/**
+	 * Set image compression.
+	 * 
+	 * @param compression			The compression.
+	 */
+	bool setCompression(unsigned char compression);
+
+	/**
+	 * Get image compression.
+	 * 
+	 * @return						The compression.
+	 */
+	unsigned char getCompression();
 
 	/**
 	 * Get the camera version.
@@ -501,32 +534,72 @@ public:
 	 * @param baudRate				The boud rate.
 	 */
 	bool setBoudRate(int baudRate);
-	
+
 	/**
-	 * Set frame transfer mode.
+	 * Runs a command.
 	 * 
-	 * @param mode					The mode (DMA or MCU)
+	 * @param cmd					The command to be runned.
+	 * @param args					Buffer of the command params.
+	 * @param argc 					How many bytes the buffer has (the command args size).
+	 * @param responseLength		The expected response length.
 	 */
-	void setFrameTransferControl(TransferControl controll) {
-		frameTransferControl = controll & 0x01;
-	}
+	bool executeCommand(unsigned char cmd, unsigned char *args, int argc,
+			int responseLength);
 
 private:
 
+	/**
+	 * Utility function.
+	 * 
+	 * @param buf				The buffer to be debuged.
+	 * @param c					How many bytes will be printed.
+	 */
 	void printBuff(unsigned char *buf, int c);
 
+	/**
+	 * Writes to UART.
+	 * 
+	 * @param buf				Buffer from data will come from.
+	 * @param size				How many bytes will tried to write.
+	 */
 	int write(unsigned char *buf, int size);
 
+	/**
+	 * Reads from UART.
+	 * 
+	 * @param buf				Buffer where data will be read to.
+	 * @param size				How many bytes will tried to read.
+	 */
 	int read(unsigned char *buf, int size);
 
+	/**
+	 * Receive command format :
+	 * 
+	 * Protocol sign(1byte)+Serial number(1byte)+Command(1byte)+Data-lengths(1byte)+Data(0~16bytes)
+	 * 
+	 * @param cmd				The command.
+	 * @param args				The command data array.
+	 * @param argc				The command data length.
+	 */
 	int sendCommand(unsigned char cmd, unsigned char *args, int argc);
 
+	/**
+	 * Protocol sign(1byte)+Serial number(1byte)+Command(1byte)+Status(1byte)+Data-lengths(1byte)+Data(0~16bytes)
+	 * 
+	 * @param cmd				The command to check the response.
+	 * @return 					True if there is a correct response, fatse otherwise.
+	 */
 	bool verifyResponse(unsigned char cmd);
 
+	/**
+	 * Reads data and put into the rxBuffer.
+	 * 
+	 * Adjust the current rxBuffer pointer.
+	 * 
+	 * @param length			How many data will be read.
+	 * @return 					How many data was actually read.
+	 */
 	int readResponse(int length);
-
-	bool runCommand(unsigned char cmd, unsigned char *args, int argc,
-			int responseLength);
 };
 
 #endif /* __RASPBERRY_DRIVER_CAMERA_VC0706_H__ */

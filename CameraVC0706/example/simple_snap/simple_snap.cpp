@@ -20,10 +20,10 @@ int main(int argc, char *argv[]) {
 		printf("Cannot begin.\n");
 		exit(1);
 	}
-
+	
 	switch (argv[2][0]) {
 
-		unsigned char b, c;
+		unsigned char b, c, d;
 		case 'B':
 			if (argc < 4) {
 				printf("Baud rate not specified.\n");
@@ -107,17 +107,17 @@ int main(int argc, char *argv[]) {
 			}
 			b = (unsigned char) atoi(argv[3]);
 			c = (unsigned char) atoi(argv[4]);
-			if (!cam.setColorControl(b, c)) {
-                printf("Set color control by %s with flag: %d.\n", (b ? "GPIO" : "UART"), c);
+			if (cam.setColorControl(b, c)) {
+                printf("Set color control by %s with flag: %d.\n", (b ? "UART" : "GPIO"), c);
 			} else {
-                printf("Error on setting color control by %s with flag: %d.\n", (b ? "GPIO" : "UART"), c);
+                printf("Error on setting color control by %s with flag: %d.\n", (b ? "UART" : "GPIO"), c);
             }
 			break;
 			
 		case 'c':
 			printf("Get color control. ");
 			c = cam.getColorControlStatus();
-            printf("By: %s and flag: %d.\n", (c & 0x01 ? "GPIO" : "UART"), (c >> 1) & 0x03);
+            printf("By: %s and flag: %d.\n", (c & 0x01 ? "UART" : "GPIO"), (c >> 1) & 0x03);
 			break;
             
 		case 'H':
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 			}
 			b = (unsigned char) atoi(argv[3]);
 			c = (unsigned char) atoi(argv[4]);
-			if (!cam.setHorizontalMirror(b, c)) {
+			if (cam.setHorizontalMirror(b, c)) {
                 printf("Set horizontal mirror by %s with flag: %d.\n", (b ? "GPIO" : "UART"), c);
 			} else {
                 printf("Error on setting horizontal mirror by %s with flag: %d.\n", (b ? "GPIO" : "UART"), c);
@@ -139,6 +139,52 @@ int main(int argc, char *argv[]) {
 			c = cam.getHorizontalMirrorStatus();
             printf("By: %s and flag: %d.\n", (c & 0x01 ? "GPIO" : "UART"), (c >> 1) & 0x01);
 			break;
+			
+		case 'r':
+			printf("Reseting. ");
+			if (cam.reset()) {
+				printf("OK\n");
+			} else {
+				printf("Error\n");
+			}	
+            break;
+			
+		case 's':
+			if (argc < 7) {
+				printf("Cannot set OSD characters, insufficient param.\n");
+				exit(1);
+			}
+			b = (unsigned char) atoi(argv[3]);
+			c = (unsigned char) atoi(argv[4]);
+			d = (unsigned char) atoi(argv[5]);
+			printf("Adding OSD Characters.");
+			printf(" x: %d, y: %d, len: %d, string: %s.\n", b, c, d, argv[6]);
+			if (cam.setOsdCharacters(b, c, (unsigned char*)argv[6], d)) {
+				printf("OK\n");
+			} else {
+				printf("Error\n");
+			}	
+            break;
+			
+		case 'i':
+			printf("Get image compression. ");
+			b = cam.getCompression();
+			printf(": %d\n",  b);
+            break;
+			
+		case 'I':
+			if (argc < 4) {
+				printf("Cannot set image compression, insufficient param.\n");
+				exit(1);
+			}
+			b = (unsigned char) atoi(argv[3]);
+			printf("Set image compression to %d.", b);
+			if (cam.setCompression(b)) {
+				printf("OK\n");
+			} else {
+				printf("Error\n");
+			}	
+            break;
 			
 		default:
 			printf("%f\n", cam.getVersion());
@@ -195,6 +241,10 @@ void showUsage() {
     printf("# prog 5 c                  @115200 Get Color Control.\n");
     printf("# prog 5 H 0/1 0/1          @115200 Set Horizontal Mirror Status GPIO/UART DoNotShow/Show.\n");
     printf("# prog 5 h                  @115200 Get Horizontal Mirror Status.\n");
+    printf("# prog 5 s x y len str      @115200 Add OSD Characters.\n");
+    printf("# prog 5 I comp             @115200 Set Image Compression.\n");
+    printf("# prog 5 i                  @115200 Get Image Compression.\n");
+    printf("# prog 5 r                  @115200 Reset.\n");
     printf("# prog 5 v                  @115200 Version.\n");
 }
 
