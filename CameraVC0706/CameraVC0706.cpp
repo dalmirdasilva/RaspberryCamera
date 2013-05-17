@@ -9,8 +9,9 @@ CameraVC0706::CameraVC0706(char *dev) {
 	this->dev[i] = 0;
 	fd = 0;
 	rxBufferPointer = 0;
-	serialNumber = 0;
+	serialNumber = 0x00;
 	framePointer = 0;
+	frameTransferControl = MCU; 
 }
 
 int CameraVC0706::begin(int baud) {
@@ -69,7 +70,7 @@ int CameraVC0706::executeBufferControl(unsigned char control) {
 
 int CameraVC0706::readFrame(unsigned char *buf, int frameOffset, int bufferOffset, int len) {
 	int bytesRead = 0;
-	unsigned char args[] = {0x0c, 0x00, 0x0a,
+	unsigned char args[] = {0x0c, 0x00, (0x0f & frameTransferControl),
         ((frameOffset >> 24) & 0xff), ((frameOffset >> 16) & 0xff), ((frameOffset >> 8) & 0xff), frameOffset & 0xff,
         ((len >> 24) & 0xff), ((len >> 16) & 0xff), ((len >> 8) & 0xff), len & 0xff,
         (VC0760_CAMERA_DELAY >> 8) & 0xff, VC0760_CAMERA_DELAY & 0xff};
@@ -101,12 +102,34 @@ int CameraVC0706::getFrameLength() {
 	return frameLength;
 }
 
-void CameraVC0706::setHorizontalMirror(bool mirror) {
-	
+bool CameraVC0706::setHorizontalMirror(unsigned char by, unsigned char mirrorMode) {
+	unsigned char args[] = {0x02, (by & 0x01), (mirrorMode & 0x01)};
+	return runCommand(MIRROR_CTRL, args, sizeof(args), 5);
 }
 
-void CameraVC0706::setVerticalFlip(bool flip) {
-	
+unsigned char CameraVC0706::getHorizontalMirrorStatus() {
+	unsigned char args[] = {0x00};
+	bool run = runCommand(MIRROR_STATUS, args, sizeof(args), 7);
+	unsigned char status = 0;
+	if (run) {
+		status = rxBuffer[6] & 0x01 | (rxBuffer[5] << 1) & 0x02;
+	}
+	return status;
+}
+
+bool CameraVC0706::setColorControl(unsigned char by, unsigned char colorControlMode) {
+	unsigned char args[] = {0x02, (by & 0x01), (colorControlMode & 0x01)};
+	return runCommand(COLOR_CTRL, args, sizeof(args), 5);
+}
+
+unsigned char CameraVC0706::getColorControlStatus() {
+	unsigned char args[] = {0x00};
+	bool run = runCommand(COLOR_STATUS, args, sizeof(args), 8);
+    unsigned char status = 0;
+    if (run) {
+        status = rxBuffer[5] & 0x01 | (rxBuffer[6] << 2) & 0x06;
+    }
+    return status;
 }
 
 bool CameraVC0706::setOutputResolution(unsigned char resolution) {
@@ -119,7 +142,7 @@ bool CameraVC0706::setMotionMonitoring(bool monitor) {
 	return runCommand(COMM_MOTION_CTRL, args, sizeof(args), 5);
 }
 
-bool CameraVC0706::getMotionMonitoring() {
+bool CameraVC0706::getMotionMonitoringStatus() {
 	unsigned char args[] = {0x00};
 	bool (runCommand(COMM_MOTION_STATUS, args, sizeof(args), 6)) && rxBuffer[5];
 }
@@ -160,7 +183,7 @@ int CameraVC0706::write(unsigned char *buf, int size) {
             printf("Sent bytes (%d) differs from the size to be send (%d).\n", txLength, size);
 #endif
 
-        }
+       }
 	} else {
 
 #if VC0760_DEBUG == 1
@@ -182,7 +205,7 @@ int CameraVC0706::read(unsigned char *buf, int size) {
 		printf("No data received on read.\n");
 	} else if (rxLength != size) {
 		printf("Read bytes: %d differs from the size to be read: %d.\n", rxLength, size);
-    } else {
+   } else {
 		printf("It matches! %i bytes read when expecting %i.\n", rxLength, size);
 	}
 #endif
@@ -262,7 +285,7 @@ bool CameraVC0706::reset() {
 
 float CameraVC0706::getVersion() {
 	int i = 0;
-	unsigned char args[] = { 0x00 };
+	unsigned char args[] = {0x00};
 	if (!runCommand(GEN_VERSION, args, sizeof(args), VC0760_RX_BUFFER_SIZE)) {
 		return 0.0;
 	}

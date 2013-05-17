@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 
 	switch (argv[2][0]) {
 
-		unsigned char c;
+		unsigned char b, c;
 		case 'B':
 			if (argc < 4) {
 				printf("Baud rate not specified.\n");
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
 			cam.setOutputResolution(c);
 			break;
 
-		case 'c':
+		case 't':
 			if (argc < 4) {
 				printf("File name not specified.\n");
 				exit(1);
@@ -91,13 +91,53 @@ int main(int argc, char *argv[]) {
 			break;
 			
 		case 'm':
-			c = cam.getMotionMonitoring();
+			c = cam.getMotionMonitoringStatus();
 			printf("Getting motion monitoring: %d.\n", c);
 			break;
 			
 		case 'd':
 			printf("Detect motion.");
 			cam.pollMotionMonitoring(120, captureCallback);
+			break;
+            
+		case 'C':
+			if (argc < 5) {
+				printf("Cannot set color control, insufficient param.\n");
+				exit(1);
+			}
+			b = (unsigned char) atoi(argv[3]);
+			c = (unsigned char) atoi(argv[4]);
+			if (!cam.setColorControl(b, c)) {
+                printf("Set color control by %s with flag: %d.\n", (b ? "GPIO" : "UART"), c);
+			} else {
+                printf("Error on setting color control by %s with flag: %d.\n", (b ? "GPIO" : "UART"), c);
+            }
+			break;
+			
+		case 'c':
+			printf("Get color control. ");
+			c = cam.getColorControlStatus();
+            printf("By: %s and flag: %d.\n", (c & 0x01 ? "GPIO" : "UART"), (c >> 1) & 0x03);
+			break;
+            
+		case 'H':
+			if (argc < 5) {
+				printf("Cannot set horizontal mirror, insufficient param.\n");
+				exit(1);
+			}
+			b = (unsigned char) atoi(argv[3]);
+			c = (unsigned char) atoi(argv[4]);
+			if (!cam.setHorizontalMirror(b, c)) {
+                printf("Set horizontal mirror by %s with flag: %d.\n", (b ? "GPIO" : "UART"), c);
+			} else {
+                printf("Error on setting horizontal mirror by %s with flag: %d.\n", (b ? "GPIO" : "UART"), c);
+            }
+			break;
+			
+		case 'h':
+			printf("Get horizontal mirror. ");
+			c = cam.getHorizontalMirrorStatus();
+            printf("By: %s and flag: %d.\n", (c & 0x01 ? "GPIO" : "UART"), (c >> 1) & 0x01);
 			break;
 			
 		default:
@@ -109,7 +149,7 @@ int main(int argc, char *argv[]) {
 }
 
 void captureCallback(void *param) {
-	captureAndSave((CameraVC0706 *) param, "photo1.jpg");
+	captureAndSave((CameraVC0706 *) param, (char*)"photo1.jpg");
 }
 
 void captureAndSave(CameraVC0706 *cam, char *fileName) {
@@ -144,16 +184,18 @@ void captureAndSave(CameraVC0706 *cam, char *fileName) {
 }
 
 void showUsage() {
-	printf("program 5 B 0/1/2/3/4/5     @115200 Baud Rate 9600/19200/38400/57600/115200.\n");
-	printf("program 5 T 0/1             @115200 TV off/on.\n");
-	printf("program 5 o 0/1/2           @115200 Resolution 160x120/320x240/640x480.\n");
-	printf("program 5 c <filename>      @115200 Capture.\n");
-	printf("program 5 M 0/1             @115200 Set Motion Monitoring.\n");
-	printf("program 5 m                 @115200 Get Motion Monitoring.\n");
-	printf("program 5 d                 @115200 Detect Monitoring.\n");
-	printf("program 5 c <filename>      @115200 Capture.\n");
-	//printf("program 5 f 0/1 0/1			@115200 Stop/Resume current/next frame.\n");
-	printf("program 5 v                 @115200 Version.\n");
+    printf("# prog 5 B 0/1/2/3/4/5      @115200 Baud Rate 9600/19200/38400/57600/115200.\n");
+    printf("# prog 5 T 0/1              @115200 TV off/on.\n");
+    printf("# prog 5 o 0/1/2            @115200 Resolution 160x120/320x240/640x480.\n");
+    printf("# prog 5 t 'filename.jpg'   @115200 Take a Picture.\n");
+    printf("# prog 5 M 0/1              @115200 Set Motion Monitoring.\n");
+    printf("# prog 5 m                  @115200 Get Motion Monitoring.\n");
+    printf("# prog 5 d                  @115200 Detect Monitoring.\n");
+    printf("# prog 5 C 0/1 0/1/2        @115200 Set Color Control GPIO/UART AUTO/MANUAL/MANUAL_BLACK_WHITE.\n");
+    printf("# prog 5 c                  @115200 Get Color Control.\n");
+    printf("# prog 5 H 0/1 0/1          @115200 Set Horizontal Mirror Status GPIO/UART DoNotShow/Show.\n");
+    printf("# prog 5 h                  @115200 Get Horizontal Mirror Status.\n");
+    printf("# prog 5 v                  @115200 Version.\n");
 }
 
 int getBoudFromChar(char c) {

@@ -42,8 +42,32 @@ class CameraVC0706 {
 	unsigned char serialNumber;
 
 	int framePointer;
+	
+	unsigned char frameTransferControl;
 
 public:
+
+	enum TransferControl {
+		MCU = 0,
+		DMA = 1
+	};
+	
+	enum ControlBy {
+		GPIO = 0,
+		UART = 1,
+	};
+	
+	enum ColorControlMode {
+		
+		// Automatically step black-white and colour.
+		AUTO_STEP_BLACK_WHITE = 0,
+		
+		// Manually step color, select colour.
+		MANUAL_STEP_SELECT_COLOUR = 1,
+		
+		// Manually step color, select black-white.
+		MANUAL_STEP_SELECT_BLACK_WHITE = 2
+	};
 
 	enum Command {
 
@@ -255,17 +279,104 @@ public:
 
 	/**
 	 * En/disable horizontal mirror.
-	 *
-	 * @param mirror        The mirror option.
+	 * 
+	 * Command function : control show status of sensor mirror.
+	 * Command format :0x56+serial number+0x3A+0x02+control mode(1 byte)+Mirror mode(1 byte)
+	 * 
+	 * <pre>
+	 * Control mode:
+	 * 		0:control mirror by GPIO.
+	 * 		1:control mirror by UART.
+	 * </pre>
+	 * 
+	 * Mirror mode:whether show mirror by UART, it is effective only with UART.It needs GPIO 
+	 * value to set with GPIO control.
+	 * 
+	 * <pre>
+	 * 		0:do not show mirror
+	 * 		1:show mirror
+	 *</pre>
+	 * 
+	 * @param by						The mirror control.
+	 * @param mirrorMode				The mirror mode.
 	 */
-	void setHorizontalMirror(bool mirror);
+	bool setHorizontalMirror(unsigned char by, unsigned char mirrorMode);
+	
+	/**
+	 * Command function : get show status of sensor mirror.
+	 * 
+	 * Command format :0x56+serial number+0x3B+0x00
+	 * 
+	 * Control mode:
+	 * 		0:control mirror by GPIO.
+	 * 		1:control mirror by UART.
+	 * 
+	 * Mirror mode:whether show mirror by UART, it is effective only with UART.
+	 * It needs GPIO value to set with GPIO control.
+	 * 		0:do not show mirror
+	 * 		1:show mirror
+	 * 
+	 * Return format :
+	 * 0x76+serial number+0x3B+0x00+0x02+control mode(1 byte)+Mirror mode(1 byte)
+	 * 
+	 * @return status						bit0 is the control mode, and the 
+	 * 										bit1 is the mirror mode. 
+	 */
+	unsigned char getHorizontalMirrorStatus();
 
 	/**
-	 * En/disable vertical flip.
-	 *
-	 * @param mirror        The vertical flip.
+	 * Command function : color control mode and show mode
+	 * Command format :0x56+serial number+0x3C+0x02+control mode(1 byte)+show mode(1 byte)
+	 * 
+	 * <pre>
+	 * Control mode:
+	 * 		0:control color by GPIO.
+	 * 		1:control color by UART.
+	 * </pre>
+	 * Show mode:show different color by UART, it is effective only with UART.
+	 * 
+	 * <pre>
+	 * It needs Mirror value to set with GPIO control.
+	 * 		0:automatically step black-white and colour.
+	 * 		1:manually step color, select colour.
+	 * 		2:manually step color, select black-white.
+	 * </pre>
+	 * 
+	 * Return format :
+	 * OK:0x76+serial number+0x3C+0x00+0x00
+	 * 
+	 * @param by							The color control (UART or GPIO).
+	 * @param colorControlMode				The color control mode.
 	 */
-	void setVerticalFlip(bool flip);
+	bool setColorControl(unsigned char by, unsigned char colorControlMode);
+  
+    /**
+     * Command function : get color control mode and show mode
+     * 
+     * Command format :0x56+serial number+0x3D+0x00
+     * 
+     * <pre>
+     * Control mode:
+     *      0:control color by GPIO.
+     *      1:control color by UART.
+     * 
+     * Show mode:show current color by UART.
+     *      0:automatically step black-white and colour.
+     *      1:manual step color, select colour.
+     *      2:manual step color, select black-white.
+     * </pre>
+     * 
+     * Return format :
+     * 
+     * 0x76+serial number+0x3D+0x00+0x03+control mode(1 byte)+show mode(1 byte)+current color(1 byte)
+     * 
+     * @return status                   bit0 Control mode (GPIO = 0, UART = 1)
+     *                                  bit[1,2] Show mode
+     *                                      00:automatically step black-white and colour.
+     *                                      01:manual step color, select colour.
+     *                                      10:manual step color, select black-white.
+     */ 
+	unsigned char getColorControlStatus();
 
 	/**
 	 * Sets predefined output resolution.
@@ -310,7 +421,7 @@ public:
 	 * 
 	 * @param return			The flag.
 	 */
-	bool getMotionMonitoring();
+	bool getMotionMonitoringStatus();
 	
 	/**
 	 * Polling for motion detection.
@@ -390,6 +501,15 @@ public:
 	 * @param baudRate				The boud rate.
 	 */
 	bool setBoudRate(int baudRate);
+	
+	/**
+	 * Set frame transfer mode.
+	 * 
+	 * @param mode					The mode (DMA or MCU)
+	 */
+	void setFrameTransferControl(TransferControl controll) {
+		frameTransferControl = controll & 0x01;
+	}
 
 private:
 
