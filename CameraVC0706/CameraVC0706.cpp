@@ -21,7 +21,7 @@ int CameraVC0706::begin(int baud) {
 		return 0;
 	}
 	baudRate = B115200;
-	switch(baud) {
+	switch (baud) {
 		case B_9600:
 			baudRate = B9600;
 			break;
@@ -39,8 +39,8 @@ int CameraVC0706::begin(int baud) {
 			break;
 	}
 	tcgetattr(fd, &options);
-    cfsetispeed(&options, baudRate);
-    cfsetospeed(&options, baudRate);
+	cfsetispeed(&options, baudRate);
+	cfsetospeed(&options, baudRate);
 	options.c_cflag = baudRate | CS8 | CLOCAL | CREAD;
 	options.c_iflag = IGNPAR;
 	options.c_oflag = 0;
@@ -63,16 +63,18 @@ int CameraVC0706::resume() {
 }
 
 int CameraVC0706::executeBufferControl(unsigned char control) {
-	unsigned char args[] = {(unsigned char)(control & 0x03)};
+	unsigned char args[] = {(unsigned char) (control & 0x03)};
 	return executeCommand(FBUF_CTRL, args, sizeof(args), 5);
 }
 
-int CameraVC0706::readFrame(unsigned char *buf, int frameOffset, int bufferOffset, int len) {
+int CameraVC0706::readFrame(unsigned char *buf, int frameOffset,
+		int bufferOffset, int len) {
 	int bytesRead = 0;
-	unsigned char args[] = {0x00, 0x0a,
-        ((frameOffset >> 24) & 0xff), ((frameOffset >> 16) & 0xff), ((frameOffset >> 8) & 0xff), frameOffset & 0xff,
-        ((len >> 24) & 0xff), ((len >> 16) & 0xff), ((len >> 8) & 0xff), len & 0xff,
-        (VC0760_CAMERA_DELAY >> 8) & 0xff, VC0760_CAMERA_DELAY & 0xff};
+	unsigned char args[] = {0x00, 0x0a, ((frameOffset >> 24) & 0xff),
+			((frameOffset >> 16) & 0xff), ((frameOffset >> 8) & 0xff),
+			frameOffset & 0xff, ((len >> 24) & 0xff), ((len >> 16) & 0xff),
+			((len >> 8) & 0xff), len & 0xff, (VC0760_CAMERA_DELAY >> 8) & 0xff,
+			VC0760_CAMERA_DELAY & 0xff};
 
 	if (!executeCommand(READ_FBUF, args, sizeof(args), 5)) {
 		return 0;
@@ -88,7 +90,8 @@ int CameraVC0706::readFrame(unsigned char *buf, int frameOffset, int bufferOffse
 int CameraVC0706::getFrameLength() {
 	int frameLength;
 	unsigned char args[] = {0x00};
-	if (!executeCommand(GET_FBUF_LEN, args, sizeof(args), 9) && rxBuffer[4] == 0x04) {
+	if (!executeCommand(GET_FBUF_LEN, args, sizeof(args), 9)
+			&& rxBuffer[4] == 0x04) {
 		return 0;
 	}
 	frameLength = rxBuffer[5];
@@ -101,8 +104,10 @@ int CameraVC0706::getFrameLength() {
 	return frameLength;
 }
 
-bool CameraVC0706::setHorizontalMirror(unsigned char by, unsigned char mirrorMode) {
-	unsigned char args[] = {(by & 0x01), (mirrorMode & 0x01)};
+bool CameraVC0706::setHorizontalMirror(unsigned char by,
+		unsigned char mirrorMode) {
+	unsigned char args[] = {(unsigned char) (by & 0x01),
+			(unsigned char) (mirrorMode & 0x01)};
 	return executeCommand(MIRROR_CTRL, args, sizeof(args), 5);
 }
 
@@ -111,24 +116,26 @@ unsigned char CameraVC0706::getHorizontalMirrorStatus() {
 	bool run = executeCommand(MIRROR_STATUS, args, sizeof(args), 7);
 	unsigned char status = 0;
 	if (run) {
-		status = rxBuffer[6] & 0x01 | (rxBuffer[5] << 1) & 0x02;
+		status = (rxBuffer[6] & 0x01) | ((rxBuffer[5] << 1) & 0x02);
 	}
 	return status;
 }
 
-bool CameraVC0706::setColorControl(unsigned char by, unsigned char colorControlMode) {
-	unsigned char args[] = {(by & 0x01), (colorControlMode & 0x01)};
+bool CameraVC0706::setColorControl(unsigned char by,
+		unsigned char colorControlMode) {
+	unsigned char args[] = {(unsigned char) (by & 0x01),
+			(unsigned char) (colorControlMode & 0x01)};
 	return executeCommand(COLOR_CTRL, args, sizeof(args), 5);
 }
 
 unsigned char CameraVC0706::getColorControlStatus() {
 	unsigned char args[] = {};
 	bool run = executeCommand(COLOR_STATUS, args, sizeof(args), 8);
-    unsigned char status = 0;
-    if (run) {
-        status = rxBuffer[5] & 0x01 | (rxBuffer[6] << 2) & 0x06;
-    }
-    return status;
+	unsigned char status = 0;
+	if (run) {
+		status = (rxBuffer[5] & 0x01) | ((rxBuffer[6] << 2) & 0x06);
+	}
+	return status;
 }
 
 bool CameraVC0706::setOutputResolution(unsigned char resolution) {
@@ -137,13 +144,14 @@ bool CameraVC0706::setOutputResolution(unsigned char resolution) {
 }
 
 bool CameraVC0706::setMotionMonitoring(bool monitor) {
-	unsigned char args[] = {(unsigned char)(monitor & 0x01)};
+	unsigned char args[] = {(unsigned char) (monitor & 0x01)};
 	return executeCommand(COMM_MOTION_CTRL, args, sizeof(args), 5);
 }
 
 bool CameraVC0706::getMotionMonitoringStatus() {
 	unsigned char args[] = {};
-	bool (executeCommand(COMM_MOTION_STATUS, args, sizeof(args), 6)) && rxBuffer[5];
+	return (executeCommand(COMM_MOTION_STATUS, args, sizeof(args), 6))
+			&& rxBuffer[5];
 }
 
 bool CameraVC0706::pollMotionMonitoring(int timeout, void (*callback)(void *)) {
@@ -158,7 +166,8 @@ bool CameraVC0706::pollMotionMonitoring(int timeout, void (*callback)(void *)) {
 		} else {
 			time(&now);
 		}
-	} while(((now - start) < timeout) && !detected);
+	} while (((now - start) < timeout) && !detected);
+	return detected;
 }
 
 int CameraVC0706::write(unsigned char *buf, int size) {
@@ -176,44 +185,47 @@ int CameraVC0706::write(unsigned char *buf, int size) {
 			printf("UART TX error\n");
 #endif
 
-		} else if(txLength != size) {
+		} else if (txLength != size) {
 
 #if VC0760_DEBUG == 1
-            printf("Sent bytes (%d) differs from the size to be send (%d).\n", txLength, size);
+			printf("Sent bytes (%d) differs from the size to be send (%d).\n",
+					txLength, size);
 #endif
 
-       }
+		}
 	} else {
 
 #if VC0760_DEBUG == 1
 		printf("UART file descriptor is closed.\n");
 #endif
 
-        return -1;
+		return -1;
 	}
 	return txLength;
 }
 
 int CameraVC0706::read(unsigned char *buf, int size) {
 	int rxLength = ::read(fd, buf, size);
-	
+
 #if VC0760_DEBUG == 1
 	if (rxLength < 0) {
 		printf("Error on read.\n");
 	} else if (rxLength == 0) {
 		printf("No data received on read.\n");
 	} else if (rxLength != size) {
-		printf("Read bytes: %d differs from the size to be read: %d.\n", rxLength, size);
-   } else {
-		printf("It matches! %i bytes read when expecting %i.\n", rxLength, size);
+		printf("Read bytes: %d differs from the size to be read: %d.\n",
+				rxLength, size);
+	} else {
+		printf("It matches! %i bytes read when expecting %i.\n", rxLength,
+				size);
 	}
 #endif
 
 	return rxLength;
 }
 
-bool CameraVC0706::executeCommand(unsigned char cmd, unsigned char *args, int argc,
-		int responseLength) {
+bool CameraVC0706::executeCommand(unsigned char cmd, unsigned char *args,
+		int argc, int responseLength) {
 	if (!sendCommand(cmd, args, argc)) {
 		return false;
 	}
@@ -234,7 +246,7 @@ int CameraVC0706::sendCommand(unsigned char cmd, unsigned char *args,
 	buf[0] = VC0760_PROTOCOL_SIGN_TX;
 	buf[1] = serialNumber;
 	buf[2] = cmd;
-	buf[3] = (unsigned char)(argc & 0xff);
+	buf[3] = (unsigned char) (argc & 0xff);
 	memcpy(&buf[4], args, argc);
 	printf("send command");
 	printBuff(buf, sizeof(buf));
@@ -256,8 +268,9 @@ int CameraVC0706::sendCommand(unsigned char cmd, unsigned char *args,
 }
 
 bool CameraVC0706::verifyResponse(unsigned char cmd) {
-	if ((rxBuffer[0] != VC0760_PROTOCOL_SIGN_RX) || (rxBuffer[1] != serialNumber)
-			|| (rxBuffer[2] != cmd) || (rxBuffer[3] != 0x00)) {
+	if ((rxBuffer[0] != VC0760_PROTOCOL_SIGN_RX)
+			|| (rxBuffer[1] != serialNumber) || (rxBuffer[2] != cmd)
+			|| (rxBuffer[3] != 0x00)) {
 		return false;
 	}
 	return true;
@@ -281,7 +294,7 @@ void CameraVC0706::printBuff(unsigned char *buf, int c) {
 bool CameraVC0706::reset() {
 	unsigned char args[] = {};
 	bool run = executeCommand(SYSTEM_RESET, args, sizeof(args), 5);
-		
+
 #if VC0760_DEBUG == 1
 	if (run) {
 		printf("Waiting the system to reset.\n");
@@ -307,13 +320,14 @@ float CameraVC0706::getVersion() {
 	return version;
 }
 
-bool CameraVC0706::setOsdCharacters(unsigned char x, unsigned char y, unsigned char *str, unsigned char len) {
+bool CameraVC0706::setOsdCharacters(unsigned char x, unsigned char y,
+		unsigned char *str, unsigned char len) {
 	if (len > 14) {
 		len = 14;
 	}
 	unsigned char args[2 + len];
 	args[0] = len;
-	args[1] = (x << 6) & 0x60 | y & 0x1f;
+	args[1] = ((x << 6) & 0x60) | (y & 0x1f);
 	memcpy(&args[2], str, len);
 	return executeCommand(OSD_ADD_CHAR, args, sizeof(args), 5);
 }
