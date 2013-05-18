@@ -54,11 +54,11 @@ public:
 	
 	enum ColorControlMode {
 		
-		// Automatically step black-white and colour.
+		// Automatically step black-white and color.
 		AUTO_STEP_BLACK_WHITE = 0,
 		
-		// Manually step color, select colour.
-		MANUAL_STEP_SELECT_COLOUR = 1,
+		// Manually step color, select color.
+		MANUAL_STEP_SELECT_COLOR = 1,
 		
 		// Manually step color, select black-white.
 		MANUAL_STEP_SELECT_BLACK_WHITE = 2
@@ -78,7 +78,7 @@ public:
 		// System reset
 		SYSTEM_RESET = 0x26,
 
-		// Read data regisvter
+		// Read data register
 		READ_DATA = 0x30,
 
 		// Write data register
@@ -99,13 +99,13 @@ public:
 		// Control frame buffer register
 		FBUF_CTRL = 0x36,
 
-		// Motion detect on or off in comunication interface
+		// Motion detect on or off in communication interface
 		COMM_MOTION_CTRL = 0x37,
 
-		// Get motion monitoring status in comunication interface
+		// Get motion monitoring status in communication interface
 		COMM_MOTION_STATUS = 0x38,
 
-		// Motion has been detected by comunication interface
+		// Motion has been detected by communication interface
 		COMM_MOTION_DETECTED = 0x39,
 
 		// Mirror control
@@ -141,7 +141,7 @@ public:
 		// TV output on or off control
 		TV_OUT_CTRL = 0x44,
 
-		// Add characters to OSD channels
+		// Add characters to OSD channels (unsupported by the VC0706 firmware)
 		OSD_ADD_CHAR = 0x45,
 
 		// Downsize Control
@@ -170,7 +170,7 @@ public:
 	};
 
 	enum OutputResolution {
-		OR_640x480 = 0x00, OR_320x240 = 0x11, OR_160x120 = 0x22
+		RES_640X480 = 0x00, RES_320X240 = 0x11, RES_160X120 = 0x22
 	};
 
 	enum BufferControl {
@@ -205,22 +205,76 @@ public:
 	/**
 	 * Initializes the camera.
 	 */
-	int begin(int baud);
+	bool begin(int baud);
 
 	/**
 	 * Closes the camera.
 	 */
-	int close();
+	bool close();
 
 	/**
 	 * Captures a frame.
 	 */
-	int capture();
+	bool capture();
 
 	/**
 	 * Resumes the camera.
 	 */
-	int resume();
+	bool resume();
+
+	/**
+	 * Command function : control downsize attribute
+	 *
+	 * Command format :0x56+serial number+0x53+0x01+control item(1 byte)control item:zooming image proportion
+	 *
+	 * <pre>
+	 * Bit[1:0]:width zooming proportion
+	 *      2b'00:1:1, no zoom
+	 *      2b'01:1:2, the proportion is 1/2.
+	 *      2b'10:1:4, the proportion is 1/4.
+	 *      2b'11:reservation
+	 *
+	 * Bit[3:2]:height zooming proportion
+	 *      2b'00:1:1, no zoom
+	 *      2b'01:1:2, the proportion is 1/2.
+	 *      2b'10:1:4, the proportion is 1/4.
+	 *      2b'11:reservation
+	 * </pre>
+	 *
+	 * Notice:
+	 *
+	 * 1. The image width must be the multiple of 16 in FBUF, image height is the multiple of 8, so the
+	 * configuration information could satisfy the condition.
+	 * 2. The zooming proportion of image height is not more than the zooming proportion of width.
+	 * Return format : 0x76+serial number+0x53+0x00+0x00
+	 *
+	 * @param widthDownSize                 The width downsize.
+	 * @param heightDownSize                The height downsize.
+	 */
+    bool setDownSize(unsigned char widthDownSize, unsigned char heightDownSize);
+
+	/**
+	 * Command function : get downsize status
+	 *
+	 * Command format : 0x56+serial number+0x54+0x00 control item:zooming image proportion
+	 *
+	 * <pre>
+	 * Bit[1:0]:width zooming proportion
+	 *      2b'00:1:1, no zoom
+	 *      2b'01:1:2, the proportion is 1/2.
+	 *      2b'10:1:4, the proportion is 1/4.
+	 *      2b'11:reservation
+	 *
+     * Bit[3:2]:height zooming proportion
+     *      2b'00:1:1, no zoom
+     *      2b'01:1:2, the proportion is 1/2.
+     *      2b'10:1:4, the proportion is 1/4.
+     *      2b'11:reservation
+     * </pre>
+     *
+     * Return format : 0x76+serial number+0x54+0x00+0x01+control item(1 byte)
+	 */
+	unsigned char getDownSize();
 
 	/**
 	 * Gets the frame length.
@@ -332,8 +386,8 @@ public:
 	 * 
 	 * <pre>
 	 * It needs Mirror value to set with GPIO control.
-	 * 		0:automatically step black-white and colour.
-	 * 		1:manually step color, select colour.
+	 * 		0:automatically step black-white and color.
+	 * 		1:manually step color, select color.
 	 * 		2:manually step color, select black-white.
 	 * </pre>
 	 * 
@@ -356,8 +410,8 @@ public:
      *      1:control color by UART.
      * 
      * Show mode:show current color by UART.
-     *      0:automatically step black-white and colour.
-     *      1:manual step color, select colour.
+     *      0:automatically step black-white and color.
+     *      1:manual step color, select color.
      *      2:manual step color, select black-white.
      * </pre>
      * 
@@ -367,8 +421,8 @@ public:
      * 
      * @return status                   bit0 Control mode (GPIO = 0, UART = 1)
      *                                  bit[1,2] Show mode
-     *                                      00:automatically step black-white and colour.
-     *                                      01:manual step color, select colour.
+     *                                      00:automatically step black-white and color.
+     *                                      01:manual step color, select color.
      *                                      10:manual step color, select black-white.
      */ 
 	unsigned char getColorControlStatus();
@@ -383,7 +437,7 @@ public:
 	/**
 	 * Sets the motion detection.
 	 * 
-	 * Command function :motion detect on or off in comunication interface
+	 * Command function :motion detect on or off in communication interface
 	 * Command format :0x56+serial number+0x37+0x01+control flag(1 byte)
 	 * 
 	 * <pre>
@@ -400,7 +454,7 @@ public:
 	/**
 	 * Gets the motion status.
 	 * 
-	 * Command function :get motion monitoring status in comunication interface.
+	 * Command function :get motion monitoring status in communication interface.
 	 * Command format :0x56+serial number+0x38+0x00
 	 * 
 	 * Return format :
@@ -433,7 +487,7 @@ public:
 	 * It is an active command that system send to control terminal.
 	 * 
 	 * @param timeout			The timeout to wait.
-	 * @param callback			Funtion pointer.	
+	 * @param callback			Function pointer.
 	 */
 	bool pollMotionMonitoring(int timeout, void (*callback)(void *));
 	
@@ -507,7 +561,7 @@ public:
 	 *
 	 * @param control               The buffer control.
 	 */
-	int executeBufferControl(unsigned char control);
+	bool executeBufferControl(unsigned char control);
 
 	/**
 	 * Set TV output.
@@ -517,7 +571,7 @@ public:
 	bool setTVOutput(unsigned char onOff);
 
 	/**
-	 * Configures the boud rate.
+	 * Configures the baud rate.
 	 *
 	 * Command function :Set the property of communication interface
 	 * Command format :0x56+Serial number+0x24+Data-length+interface type1byte)+configuration data
@@ -531,7 +585,7 @@ public:
 	 * Return format :
 	 * OK: 0x76+Serial number+0x24+0x00+0x00
 	 * 
-	 * @param baudRate				The boud rate.
+	 * @param baudRate				The baud rate.
 	 */
 	bool setBoudRate(int baudRate);
 
@@ -587,7 +641,7 @@ private:
 	 * Protocol sign(1byte)+Serial number(1byte)+Command(1byte)+Status(1byte)+Data-lengths(1byte)+Data(0~16bytes)
 	 * 
 	 * @param cmd				The command to check the response.
-	 * @return 					True if there is a correct response, fatse otherwise.
+	 * @return 					True if there is a correct response, false otherwise.
 	 */
 	bool verifyResponse(unsigned char cmd);
 

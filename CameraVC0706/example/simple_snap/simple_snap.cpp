@@ -52,17 +52,17 @@ int main(int argc, char *argv[]) {
 
 				case '0':
 					printf("160x120\n");
-					c = CameraVC0706::OR_160x120;
+					c = CameraVC0706::RES_160X120;
 					break;
 
 				case '1':
 					printf("320x240\n");
-					c = CameraVC0706::OR_320x240;
+					c = CameraVC0706::RES_320X240;
 					break;
 
 				case '2':
 					printf("640x480\n");
-					c = CameraVC0706::OR_640x480;
+					c = CameraVC0706::RES_640X480;
 					break;
 				default:
 					printf("Error, invalid resolution.\n");

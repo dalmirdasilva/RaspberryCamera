@@ -13,7 +13,7 @@ CameraVC0706::CameraVC0706(char *dev) {
 	framePointer = 0;
 }
 
-int CameraVC0706::begin(int baud) {
+bool CameraVC0706::begin(int baud) {
 	struct termios options;
 	fd = open(dev, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd == -1) {
@@ -50,19 +50,19 @@ int CameraVC0706::begin(int baud) {
 	return 1;
 }
 
-int CameraVC0706::close() {
-	return ::close(fd);
+bool CameraVC0706::close() {
+	return (bool) ::close(fd);
 }
 
-int CameraVC0706::capture() {
+bool CameraVC0706::capture() {
 	return executeBufferControl(STOP_CURRENT_FRAME);
 }
 
-int CameraVC0706::resume() {
+bool CameraVC0706::resume() {
 	return executeBufferControl(RESUME_FRAME);
 }
 
-int CameraVC0706::executeBufferControl(unsigned char control) {
+bool CameraVC0706::executeBufferControl(unsigned char control) {
 	unsigned char args[] = {(unsigned char) (control & 0x03)};
 	return executeCommand(FBUF_CTRL, args, sizeof(args), 5);
 }
@@ -87,8 +87,23 @@ int CameraVC0706::readFrame(unsigned char *buf, int frameOffset,
 	return bytesRead;
 }
 
+bool CameraVC0706::setDownSize(unsigned char widthDownSize, unsigned char heightDownSize) {
+    unsigned char args[] = {(widthDownSize & 0x03) | ((heightDownSize << 2) & 0x0c)};
+    return executeCommand(DOWNSIZE_SIZE, args, sizeof(args), 5);
+}
+
+
+unsigned char CameraVC0706::getDownSize() {
+    unsigned char args[] = {};
+    bool run = executeCommand(DOWNSIZE_SIZE, args, sizeof(args), 6);
+    if (run) {
+        return 0;
+    }
+    return rxBuffer[5];
+}
+
 int CameraVC0706::getFrameLength() {
-	int frameLength;
+	int frameLength = 0;
 	unsigned char args[] = {0x00};
 	if (!executeCommand(GET_FBUF_LEN, args, sizeof(args), 9)
 			&& rxBuffer[4] == 0x04) {
@@ -144,7 +159,7 @@ bool CameraVC0706::setOutputResolution(unsigned char resolution) {
 }
 
 bool CameraVC0706::setMotionMonitoring(bool monitor) {
-	unsigned char args[] = {(unsigned char) (monitor & 0x01)};
+	unsigned char args[] = {(unsigned char) monitor};
 	return executeCommand(COMM_MOTION_CTRL, args, sizeof(args), 5);
 }
 
@@ -166,7 +181,7 @@ bool CameraVC0706::pollMotionMonitoring(int timeout, void (*callback)(void *)) {
 		} else {
 			time(&now);
 		}
-	} while (((now - start) < timeout) && !detected);
+	} while (!detected && ((now - start) < timeout));
 	return detected;
 }
 
@@ -241,30 +256,30 @@ bool CameraVC0706::executeCommand(unsigned char cmd, unsigned char *args,
 
 int CameraVC0706::sendCommand(unsigned char cmd, unsigned char *args,
 		int argc) {
-	int length;
-	unsigned char buf[4 + argc];
+	int sentBytes = 0;
+    int bufferSize = 4 + argc;
+	unsigned char buf[bufferSize];
 	buf[0] = VC0760_PROTOCOL_SIGN_TX;
 	buf[1] = serialNumber;
 	buf[2] = cmd;
 	buf[3] = (unsigned char) (argc & 0xff);
 	memcpy(&buf[4], args, argc);
-	printf("send command");
-	printBuff(buf, sizeof(buf));
-	length = write(buf, sizeof(buf));
+	printBuff(buf, bufferSize);
+	sentBytes = write(buf, bufferSize);
 
 #if VC0760_DEBUG == 1
-	printf("%d bytes written.\n", length);
+	printf("%d bytes written.\n", sentBytes);
 #endif
 
-	if (length != (int) sizeof(buf)) {
+	if (sentBytes != bufferSize) {
 
 #if VC0760_DEBUG == 1
-		printf("Cannot write. Returned %d\n", length);
+		printf("Sent different amount than expected: %d\n", sentBytes);
 #endif
 
 		return 0;
 	}
-	return length;
+	return sentBytes;
 }
 
 bool CameraVC0706::verifyResponse(unsigned char cmd) {
@@ -307,11 +322,11 @@ bool CameraVC0706::reset() {
 
 float CameraVC0706::getVersion() {
 	int i = 0;
+	float version = 0.0;
 	unsigned char args[] = {};
 	if (!executeCommand(GEN_VERSION, args, sizeof(args), 18)) {
-		return 0.0;
+        return version;
 	}
-	float version = 0.0;
 	while (rxBuffer[i++] != ' ')
 		;
 	version += rxBuffer[i] - '0';
