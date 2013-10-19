@@ -334,7 +334,7 @@ float CameraVC0706::getVersion() {
 	int i = 0;
 	float version = 0.0;
 	unsigned char args[] = {};
-	if (!executeCommand(GEN_VERSION, args, sizeof(args), 18)) {
+	if (!executeCommand(GEN_VERSION, args, sizeof(args), 16)) {
 		return version;
 	}
 	while (rxBuffer[i++] != ' ')

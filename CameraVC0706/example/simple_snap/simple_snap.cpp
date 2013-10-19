@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
 	int baud = getBoudFromChar(argv[1][0]);
 	printf("Unsing baud %x\n", baud);
 
-	CameraVC0706 cam((char*) "/dev/ttyUSB0");
+	CameraVC0706 cam((char*) "/dev/ttyAMA0");
 	if (!cam.begin(baud)) {
 		printf("Cannot begin.\n");
 		exit(1);
@@ -190,6 +190,7 @@ int main(int argc, char *argv[]) {
 			printf("%f\n", cam.getVersion());
 	}
 
+    printf("Closing.");
 	cam.close();
 	return 0;
 }
