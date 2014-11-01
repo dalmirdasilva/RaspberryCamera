@@ -190,6 +190,7 @@ int main(int argc, char *argv[]) {
 			printf("%f\n", cam.getVersion());
 	}
 
+    printf("Closing.");
 	cam.close();
 	return 0;
 }
